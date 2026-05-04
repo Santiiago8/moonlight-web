@@ -53,7 +53,7 @@ export default function Footer() {
                 width: '100%',
                 textAlign: 'center',
             }}>
-                © 2025 MOONLIGHT® — todos los derechos reservados
+                © 2026 MOONLIGHT® — todos los derechos reservados
             </p>
         </footer>
     )

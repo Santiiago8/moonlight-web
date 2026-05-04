@@ -4,6 +4,11 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 :root {
   --font-serif: 'Cormorant Garamond', Georgia, serif;
   --font-sans: 'Inter', sans-serif;
@@ -13,7 +18,7 @@
   --color-border-mid: #2a2a2a;
   --color-text-primary: #e0e0e0;
   --color-text-secondary: #888888;
-  --color-text-muted: #444444;
+  --color-text-muted: #C2C2C2;
 }
 
 * {
