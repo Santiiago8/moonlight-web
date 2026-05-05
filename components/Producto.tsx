@@ -1,15 +1,15 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-const STOCK: Record<string, number> = {
-  M: 4,
-  L: 7,
-  XL: 6,
-  XXL: 2,
-}
+// const STOCK: Record<string, number> = {
+//   M: 4,
+//   L: 7,
+//   XL: 6,
+//   XXL: 2,
+// }
 
 const IMAGENES = [
   '/images/tshirt1.jpg',
@@ -20,18 +20,35 @@ const IMAGENES = [
 ]
 
 export default function Producto() {
+  const [stock, setStock] = useState<Record<string, number>>({})
+  const [loadingStock, setLoadingStock] = useState(true)
   const [talleSeleccionado, setTalleSeleccionado] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [imagenActual, setImagenActual] = useState(0)
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const router = useRouter()
 
+  useEffect(() => {
+    const fetchStock = async () => {
+      try {
+        const res = await fetch('/api/stock')
+        const data = await res.json()
+        setStock(data.stock)
+      } catch {
+        setStock({M: 0, L: 0, XL: 0, XXL: 0})
+      } finally {
+        setLoadingStock(false)
+      }
+    }
+    fetchStock()
+  },[])
+
   const handleAgregar = () => {
     if (!talleSeleccionado) {
       setError('Seleccioná un talle para continuar.')
       return
     }
-    if (STOCK[talleSeleccionado] === 0) {
+    if (!stock[talleSeleccionado] || stock[talleSeleccionado] === 0) {
       setError('No hay stock disponible en ese talle.')
       return
     }
@@ -54,6 +71,8 @@ export default function Producto() {
     else if (diff < -50) anterior()
     setTouchStart(null)
   }
+
+  const TALLES = ['M', 'L', 'XL', 'XXL']
 
   return (
     <section id="tienda" style={{
@@ -90,7 +109,7 @@ export default function Producto() {
         >
           <Image
             src={IMAGENES[imagenActual]}
-            alt="T-Shirt Oversized MOONLIGHT"
+            alt="T-Shirt Oversized King of Kings"
             fill
             style={{
               objectFit: 'cover',
@@ -206,35 +225,49 @@ export default function Producto() {
         talle
       </p>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-        {Object.entries(STOCK).map(([talle, stock]) => (
-          <button
-            key={talle}
-            onClick={() => { setTalleSeleccionado(talle); setError('') }}
-            disabled={stock === 0}
-            style={{
-              width: '44px',
-              height: '44px',
-              border: talleSeleccionado === talle
-                ? '0.5px solid #888'
-                : '0.5px solid var(--color-border)',
-              background: 'transparent',
-              color: stock === 0
-                ? 'var(--color-text-muted)'
-                : talleSeleccionado === talle
-                  ? 'var(--color-text-primary)'
-                  : 'var(--color-text-secondary)',
-              fontSize: '11px',
-              letterSpacing: '0.08em',
-              cursor: stock === 0 ? 'not-allowed' : 'pointer',
-              textDecoration: stock === 0 ? 'line-through' : 'none',
-              transition: 'all 0.2s',
-            }}
-          >
-            {talle}
-          </button>
-        ))}
-      </div>
+      {loadingStock ? (
+         <p style={{
+          fontSize: '11px',
+          color: 'var(--color-text-muted)',
+          letterSpacing: '0.1em',
+          marginBottom: '24px',
+        }}>
+          cargando talles...
+        </p>
+      ) : (
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+          {TALLES.map((talle) => {
+            const hayStock = stock[talle] > 0
+            return (
+              <button
+                key={talle}
+                onClick={() => { setTalleSeleccionado(talle); setError('') }}
+                disabled={!hayStock}
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  border: talleSeleccionado === talle
+                    ? '0.5px solid #888'
+                    : '0.5px solid var(--color-border)',
+                  background: 'transparent',
+                  color: !hayStock
+                    ? 'var(--color-text-muted)'
+                    : talleSeleccionado === talle
+                      ? 'var(--color-text-primary)'
+                      : 'var(--color-text-secondary)',
+                  fontSize: '11px',
+                  letterSpacing: '0.08em',
+                  cursor: !hayStock ? 'not-allowed' : 'pointer',
+                  textDecoration: !hayStock ? 'line-through' : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {talle}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {error && (
         <p style={{

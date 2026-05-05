@@ -5,11 +5,17 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 
 const PRECIO = 38000
+const TALLES_VALIDOS = ['M', 'L', 'XL', 'XXL']
 
 export default function CheckoutContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const talle = searchParams.get('talle') || ''
+
+  if (!talle || !TALLES_VALIDOS.includes(talle)) {
+    router.push('/')
+    return null
+  }
 
   const [form, setForm] = useState({
     nombre: '',
@@ -34,8 +40,16 @@ export default function CheckoutContent() {
     }))
   }
 
+  const validarEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
+
+  const validarCP = (cp: string) => {
+    return cp.trim().length >= 4
+  }
+
   const cotizarEnvio = async () => {
-    if (!form.codigoPostal || form.codigoPostal.length < 4) return
+    if (!validarCP(form.codigoPostal)) return
     setLoadingEnvio(true)
     try {
       const res = await fetch(`/api/envio?cp=${form.codigoPostal}`)
@@ -53,6 +67,14 @@ export default function CheckoutContent() {
       setError('Completá todos los campos antes de confirmar.')
       return
     }
+    if (!validarEmail(form.email)) {
+      setError('El correo electrónico no es válido.')
+      return
+    }
+    if (!validarCP(form.codigoPostal)) {
+      setError('Ingresá un código postal válido (mínimo 4 caracteres).')
+      return
+    }
     setError('')
     setEnviando(true)
     try {
@@ -62,6 +84,7 @@ export default function CheckoutContent() {
         body: JSON.stringify({ ...form, talle, precio: PRECIO, costoEnvio }),
       })
       if (res.ok) {
+        sessionStorage.setItem('pedido_confirmado', 'true')
         router.push('/checkout/confirmacion')
       } else {
         setError('Hubo un error al procesar el pedido. Intentá de nuevo.')

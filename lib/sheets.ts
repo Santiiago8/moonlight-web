@@ -50,7 +50,7 @@ export async function agregarPedido(datos: {
   })
 }
 
-export async function obtenerStock(): Promise<Record<string, number>> {
+export async function getStock(): Promise<Record<string, number>> {
   const sheets = google.sheets({ version: 'v4', auth })
 
   const res = await sheets.spreadsheets.values.get({
