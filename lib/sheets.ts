@@ -14,8 +14,8 @@ export async function agregarPedido(datos: {
   telefono: string
   ciudad: string
   codigoPostal: string
-  talle: string
-  precio: number
+  items: { talle: string; cantidad: number }[]
+  precioUnitario: number
   costoEnvio: number | null
   total: number
   metodoPago: string
@@ -26,6 +26,14 @@ export async function agregarPedido(datos: {
   const fecha = new Date().toLocaleString('es-AR', {
     timeZone: 'America/Argentina/Buenos_Aires',
   })
+
+  const resumenItems = datos.items
+    .map(i => `${i.talle} x${i.cantidad}`)
+    .join(', ')
+
+  const totalUnidades = datos.items.reduce((acc, i) => acc + i.cantidad, 0)
+  const subtotal = totalUnidades * datos.precioUnitario
+  const envio = datos.retiroPersonal ? 'retiro' : `$${(datos.costoEnvio || 0).toLocaleString()}`
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: process.env.GOOGLE_SHEET_ID,
@@ -39,18 +47,18 @@ export async function agregarPedido(datos: {
         datos.telefono,
         datos.ciudad,
         datos.codigoPostal,
-        datos.talle,
-        `$${datos.precio.toLocaleString()}`,
-        datos.costoEnvio ? `$${datos.costoEnvio.toLocaleString()}` : 'retiro',
+        resumenItems,
+        totalUnidades,
+        `$${subtotal.toLocaleString()}`,
+        envio,
         `$${datos.total.toLocaleString()}`,
         datos.metodoPago,
-        datos.retiroPersonal ? 'sí' : 'no',
       ]],
     },
   })
 }
 
-export async function getStock(): Promise<Record<string, number>> {
+export async function obtenerStock(): Promise<Record<string, number>> {
   const sheets = google.sheets({ version: 'v4', auth })
 
   const res = await sheets.spreadsheets.values.get({

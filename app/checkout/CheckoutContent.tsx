@@ -1,21 +1,22 @@
 'use client'
 
-import { useState } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
+import { useCart } from '@/lib/CartContext'
 
-const PRECIO = 38000
-const TALLES_VALIDOS = ['M', 'L', 'XL', 'XXL']
+const PRECIO_UNITARIO = 38000
 
 export default function CheckoutContent() {
-  const searchParams = useSearchParams()
   const router = useRouter()
-  const talle = searchParams.get('talle') || ''
+  const { items, limpiarCarrito } = useCart()
 
-  if (!talle || !TALLES_VALIDOS.includes(talle)) {
-    router.push('/')
-    return null
-  }
+  useEffect(() => {
+    const vieneDePedido = sessionStorage.getItem('pedido_confirmado')
+    if (items.length === 0 && !vieneDePedido) {
+      router.push('/')
+    }
+  }, [items, router])
 
   const [form, setForm] = useState({
     nombre: '',
@@ -40,13 +41,11 @@ export default function CheckoutContent() {
     }))
   }
 
-  const validarEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  }
-
-  const validarCP = (cp: string) => {
-    return cp.trim().length >= 4
-  }
+  const validarEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const validarCP = (cp: string) => cp.trim().length >= 4
+  const validarTelefono = (telefono: string) => {
+  return /^\d{7,15}$/.test(telefono.replace(/[\s\-\+]/g, ''))
+}
 
   const cotizarEnvio = async () => {
     if (!validarCP(form.codigoPostal)) return
@@ -62,6 +61,10 @@ export default function CheckoutContent() {
     }
   }
 
+  const totalUnidades = items.reduce((acc, i) => acc + i.cantidad, 0)
+  const subtotal = totalUnidades * PRECIO_UNITARIO
+  const total = subtotal + (form.retiroPersonal ? 0 : costoEnvio || 0)
+
   const handleSubmit = async () => {
     if (!form.nombre || !form.email || !form.ciudad || !form.codigoPostal) {
       setError('Completá todos los campos antes de confirmar.')
@@ -69,6 +72,10 @@ export default function CheckoutContent() {
     }
     if (!validarEmail(form.email)) {
       setError('El correo electrónico no es válido.')
+      return
+    }
+    if (!validarTelefono(form.telefono)) {
+      setError('El teléfono solo puede contener números (7 a 15 dígitos).')
       return
     }
     if (!validarCP(form.codigoPostal)) {
@@ -81,10 +88,17 @@ export default function CheckoutContent() {
       const res = await fetch('/api/pedido', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, talle, precio: PRECIO, costoEnvio }),
+        body: JSON.stringify({
+          ...form,
+          items,
+          precioUnitario: PRECIO_UNITARIO,
+          costoEnvio: form.retiroPersonal ? 0 : costoEnvio,
+          total,
+        }),
       })
       if (res.ok) {
         sessionStorage.setItem('pedido_confirmado', 'true')
+        limpiarCarrito()
         router.push('/checkout/confirmacion')
       } else {
         setError('Hubo un error al procesar el pedido. Intentá de nuevo.')
@@ -117,57 +131,46 @@ export default function CheckoutContent() {
     textTransform: 'uppercase' as const,
   }
 
-  const total = PRECIO + (costoEnvio || 0)
-
   return (
     <main>
       <Navbar />
-      <div style={{
-        maxWidth: '480px',
-        margin: '0 auto',
-        padding: '96px 24px 60px',
-      }}>
+      <div style={{ maxWidth: '480px', margin: '0 auto', padding: '96px 24px 60px' }}>
         <p style={{
-          fontSize: '10px',
-          letterSpacing: '0.3em',
-          color: 'var(--color-text-muted)',
-          textAlign: 'center',
-          marginBottom: '40px',
-          textTransform: 'uppercase',
+          fontSize: '10px', letterSpacing: '0.3em', color: 'var(--color-text-muted)',
+          textAlign: 'center', marginBottom: '40px', textTransform: 'uppercase',
         }}>
           — tu pedido —
         </p>
 
-        {/* Resumen producto */}
-        <div style={{
-          border: '0.5px solid var(--color-border)',
-          padding: '16px',
-          marginBottom: '32px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <div>
-            <p style={{
-              fontSize: '13px',
-              color: 'var(--color-text-primary)',
-              fontFamily: 'var(--font-serif)',
-              letterSpacing: '0.08em',
+        {/* Resumen items */}
+        <div style={{ border: '0.5px solid var(--color-border)', padding: '16px', marginBottom: '32px' }}>
+          <p style={{ ...labelStyle, marginBottom: '14px' }}>resumen</p>
+          {items.map(item => (
+            <div key={item.talle} style={{
+              display: 'flex', justifyContent: 'space-between',
+              alignItems: 'center', marginBottom: '10px',
             }}>
-              T-Shirt King of Kings
-            </p>
-            <p style={{
-              fontSize: '11px',
-              color: 'var(--color-text-muted)',
-              letterSpacing: '0.1em',
-              marginTop: '4px',
-            }}>
-              talle {talle}
-            </p>
+              <div>
+                <p style={{ fontSize: '13px', color: 'var(--color-text-primary)', fontFamily: 'var(--font-serif)', letterSpacing: '0.08em' }}>
+                  T-Shirt King of Kings
+                </p>
+                <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', letterSpacing: '0.1em', marginTop: '2px' }}>
+                  talle {item.talle} — {item.cantidad} {item.cantidad === 1 ? 'unidad' : 'unidades'}
+                </p>
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                $ {(item.cantidad * PRECIO_UNITARIO).toLocaleString()}
+              </p>
+            </div>
+          ))}
+          <div style={{
+            borderTop: '0.5px solid var(--color-border)',
+            paddingTop: '10px', marginTop: '6px',
+            display: 'flex', justifyContent: 'space-between',
+          }}>
+            <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', letterSpacing: '0.08em' }}>subtotal</p>
+            <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>$ {subtotal.toLocaleString()}</p>
           </div>
-          <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-            $ {PRECIO.toLocaleString()}
-          </p>
         </div>
 
         {/* Datos personales */}
@@ -209,19 +212,12 @@ export default function CheckoutContent() {
               key={metodo}
               onClick={() => setForm(prev => ({ ...prev, metodoPago: metodo }))}
               style={{
-                flex: 1,
-                padding: '12px',
-                border: form.metodoPago === metodo
-                  ? '0.5px solid #666'
-                  : '0.5px solid var(--color-border)',
+                flex: 1, padding: '12px',
+                border: form.metodoPago === metodo ? '0.5px solid #666' : '0.5px solid var(--color-border)',
                 background: 'transparent',
-                color: form.metodoPago === metodo
-                  ? 'var(--color-text-primary)'
-                  : 'var(--color-text-muted)',
-                fontSize: '11px',
-                letterSpacing: '0.12em',
-                cursor: 'pointer',
-                textTransform: 'lowercase',
+                color: form.metodoPago === metodo ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                fontSize: '11px', letterSpacing: '0.12em',
+                cursor: 'pointer', textTransform: 'lowercase',
               }}
             >
               {metodo}
@@ -231,18 +227,9 @@ export default function CheckoutContent() {
 
         {/* Datos bancarios */}
         {form.metodoPago === 'transferencia' && (
-          <div style={{
-            border: '0.5px solid var(--color-border)',
-            padding: '16px',
-            marginBottom: '24px',
-          }}>
+          <div style={{ border: '0.5px solid var(--color-border)', padding: '16px', marginBottom: '24px' }}>
             <p style={{ ...labelStyle, marginBottom: '10px' }}>datos para transferir</p>
-            <p style={{
-              fontSize: '12px',
-              color: 'var(--color-text-muted)',
-              lineHeight: 2,
-              letterSpacing: '0.06em',
-            }}>
+            <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: 2, letterSpacing: '0.06em' }}>
               CBU: 4530000800013925074504<br />
               Alias: MOONLIGHT.LR<br />
               Titular: Santiago Ceballos Palacios
@@ -251,12 +238,7 @@ export default function CheckoutContent() {
         )}
 
         {/* Retiro personal */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          marginBottom: '24px',
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
           <input
             type="checkbox"
             name="retiroPersonal"
@@ -265,75 +247,37 @@ export default function CheckoutContent() {
             onChange={handleChange}
             style={{ accentColor: '#666', width: '14px', height: '14px' }}
           />
-          <label htmlFor="retiro" style={{
-            fontSize: '11px',
-            color: 'var(--color-text-muted)',
-            letterSpacing: '0.1em',
-            cursor: 'pointer',
-          }}>
-            retiro en persona — La Rioja capital
+          <label htmlFor="retiro" style={{ fontSize: '11px', color: 'var(--color-text-muted)', letterSpacing: '0.1em', cursor: 'pointer' }}>
+            retiro en persona o envío dentro de La Rioja capital — sin costo de envío          
           </label>
         </div>
 
         {/* Costo de envío */}
         {!form.retiroPersonal && (
           <div style={{
-            border: '0.5px solid var(--color-border)',
-            padding: '14px 16px',
-            marginBottom: '24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+            border: '0.5px solid var(--color-border)', padding: '14px 16px',
+            marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
-            <p style={{
-              fontSize: '11px',
-              color: 'var(--color-text-muted)',
-              letterSpacing: '0.1em',
-            }}>
-              costo de envío
-            </p>
+            <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', letterSpacing: '0.1em' }}>costo de envío</p>
             <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-              {loadingEnvio
-                ? 'calculando...'
-                : costoEnvio !== null
-                  ? `$ ${costoEnvio.toLocaleString()}`
-                  : 'ingresá tu CP'}
+              {loadingEnvio ? 'calculando...' : costoEnvio !== null ? `$ ${costoEnvio.toLocaleString()}` : 'ingresá tu CP'}
             </p>
           </div>
         )}
 
         {/* Total */}
         <div style={{
-          borderTop: '0.5px solid var(--color-border)',
-          paddingTop: '16px',
-          marginBottom: '28px',
-          display: 'flex',
-          justifyContent: 'space-between',
+          borderTop: '0.5px solid var(--color-border)', paddingTop: '16px',
+          marginBottom: '28px', display: 'flex', justifyContent: 'space-between',
         }}>
-          <p style={{
-            fontSize: '12px',
-            color: 'var(--color-text-secondary)',
-            letterSpacing: '0.1em',
-          }}>
-            total
-          </p>
-          <p style={{
-            fontSize: '14px',
-            color: 'var(--color-text-primary)',
-            fontFamily: 'var(--font-serif)',
-          }}>
-            $ {form.retiroPersonal ? PRECIO.toLocaleString() : total.toLocaleString()}
+          <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', letterSpacing: '0.1em' }}>total</p>
+          <p style={{ fontSize: '14px', color: 'var(--color-text-primary)', fontFamily: 'var(--font-serif)' }}>
+            $ {total.toLocaleString()}
           </p>
         </div>
 
         {error && (
-          <p style={{
-            fontSize: '11px',
-            color: '#a05050',
-            letterSpacing: '0.08em',
-            marginBottom: '16px',
-            textAlign: 'center',
-          }}>
+          <p style={{ fontSize: '11px', color: '#a05050', letterSpacing: '0.08em', marginBottom: '16px', textAlign: 'center' }}>
             {error}
           </p>
         )}
@@ -342,15 +286,11 @@ export default function CheckoutContent() {
           onClick={handleSubmit}
           disabled={enviando}
           style={{
-            width: '100%',
-            padding: '14px',
-            border: '0.5px solid #444',
-            background: 'transparent',
+            width: '100%', padding: '14px',
+            border: '0.5px solid #444', background: 'transparent',
             color: enviando ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
-            fontSize: '11px',
-            letterSpacing: '0.2em',
-            cursor: enviando ? 'not-allowed' : 'pointer',
-            textTransform: 'lowercase',
+            fontSize: '11px', letterSpacing: '0.2em',
+            cursor: enviando ? 'not-allowed' : 'pointer', textTransform: 'lowercase',
           }}
         >
           {enviando ? 'procesando...' : 'confirmar pedido'}

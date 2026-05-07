@@ -1,10 +1,14 @@
 'use client'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import { useCart } from '@/lib/CartContext'
+import { useRouter } from 'next/navigation'
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(true)
+  const { totalItems } = useCart()
+  const router = useRouter()
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -41,9 +45,9 @@ export default function Navbar() {
         MOONLIGHT®
       </Link>
 
-      {/* Links — solo desktop */}
+      {/* Links — solo desktop + carrito */}
       {!isMobile && (
-        <div style={{ display: 'flex', gap: '32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
           {['inicio', 'tienda', 'nosotros'].map((item) => (
             <Link
               key={item}
@@ -59,32 +63,98 @@ export default function Navbar() {
               {item}
             </Link>
           ))}
+          <button
+            onClick={() => router.push('/checkout')}
+            style={{
+              background: 'none',
+              border: '0.5px solid var(--color-border)',
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer',
+              fontSize: '11px',
+              letterSpacing: '0.15em',
+              padding: '6px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            carrito
+            {totalItems > 0 && (
+              <span style={{
+                background: 'var(--color-text-secondary)',
+                color: '#0a0a0a',
+                borderRadius: '50%',
+                width: '16px',
+                height: '16px',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {totalItems}
+              </span>
+            )}
+          </button>
         </div>
       )}
 
-      {/* Hamburger — solo mobile */}
+      {/* Hamburger — carrito y hamburger */}
       {isMobile && (
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '5px',
-            padding: '4px',
-          }}
-        >
-          {[0, 1, 2].map((i) => (
-            <span key={i} style={{
-              display: 'block',
-              width: '22px',
-              height: '0.5px',
-              background: 'var(--color-text-secondary)',
-            }} />
-          ))}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button
+            onClick={() => router.push('/checkout')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer',
+              fontSize: '11px',
+              letterSpacing: '0.15em',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: 0,
+            }}
+          >
+            carrito
+            {totalItems > 0 && (
+              <span style={{
+                background: 'var(--color-text-secondary)',
+                color: '#0a0a0a',
+                borderRadius: '50%',
+                width: '16px',
+                height: '16px',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                {totalItems}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '5px',
+              padding: '4px',
+            }}
+          >
+            {[0, 1, 2].map((i) => (
+              <span key={i} style={{
+                display: 'block',
+                width: '22px',
+                height: '0.5px',
+                background: 'var(--color-text-secondary)',
+              }} />
+            ))}
+          </button>
+        </div>
       )}
 
       {/* Menu mobile desplegable */}
@@ -118,7 +188,6 @@ export default function Navbar() {
           ))}
         </div>
       )}
-
     </nav>
   )
 }

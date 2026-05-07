@@ -2,17 +2,29 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-export async function enviarConfirmacionCliente(datos: {
+type DatosPedido = {
   email: string
   nombre: string
-  talle: string
-  precio: number
+  telefono: string
+  ciudad: string
+  codigoPostal: string
+  items: { talle: string; cantidad: number }[]
+  precioUnitario: number
   costoEnvio: number | null
   total: number
   metodoPago: string
   retiroPersonal: boolean
-  ciudad: string
-}) {
+}
+
+const filaItem = (talle: string, cantidad: number, precio: number) => `
+  <tr>
+    <td style="padding:6px 0; color:#555;">T-Shirt King of Kings — talle ${talle}</td>
+    <td style="text-align:right;">x${cantidad}</td>
+    <td style="text-align:right;">$${(cantidad * precio).toLocaleString()}</td>
+  </tr>
+`
+
+export async function enviarConfirmacionCliente(datos: DatosPedido) {
   await resend.emails.send({
     from: 'MOONLIGHT® <onboarding@resend.dev>',
     to: datos.email,
@@ -27,12 +39,15 @@ export async function enviarConfirmacionCliente(datos: {
         <div style="border:0.5px solid #1e1e1e; padding:20px; margin-bottom:24px;">
           <p style="font-size:10px; letter-spacing:0.2em; color:#555; margin-bottom:16px;">DETALLE DEL PEDIDO</p>
           <table style="width:100%; font-size:12px; color:#888; border-collapse:collapse;">
-            <tr><td style="padding:6px 0; color:#555;">Producto</td><td style="text-align:right;">T-Shirt King of Kings</td></tr>
-            <tr><td style="padding:6px 0; color:#555;">Talle</td><td style="text-align:right;">${datos.talle}</td></tr>
-            <tr><td style="padding:6px 0; color:#555;">Precio</td><td style="text-align:right;">$${datos.precio.toLocaleString()}</td></tr>
-            <tr><td style="padding:6px 0; color:#555;">Envío</td><td style="text-align:right;">${datos.retiroPersonal ? 'Retiro en persona' : datos.costoEnvio ? `$${datos.costoEnvio.toLocaleString()}` : '-'}</td></tr>
+            ${datos.items.map(i => filaItem(i.talle, i.cantidad, datos.precioUnitario)).join('')}
             <tr style="border-top:0.5px solid #1e1e1e;">
-              <td style="padding:10px 0 6px; color:#e0e0e0;">Total</td>
+              <td style="padding:8px 0 4px; color:#555;">Envío</td>
+              <td></td>
+              <td style="text-align:right;">${datos.retiroPersonal ? 'Retiro en persona' : datos.costoEnvio ? `$${datos.costoEnvio.toLocaleString()}` : '-'}</td>
+            </tr>
+            <tr>
+              <td style="padding:4px 0 6px; color:#e0e0e0;">Total</td>
+              <td></td>
               <td style="text-align:right; color:#e0e0e0;">$${datos.total.toLocaleString()}</td>
             </tr>
           </table>
@@ -59,38 +74,37 @@ export async function enviarConfirmacionCliente(datos: {
   })
 }
 
-export async function enviarNotificacionAdmin(datos: {
-  nombre: string
-  email: string
-  telefono: string
-  talle: string
-  ciudad: string
-  codigoPostal: string
-  precio: number
-  costoEnvio: number | null
-  total: number
-  metodoPago: string
-  retiroPersonal: boolean
-}) {
+export async function enviarNotificacionAdmin(datos: DatosPedido) {
   await resend.emails.send({
     from: 'MOONLIGHT® <onboarding@resend.dev>',
-    to: 'santiagopalcios498@gmail.com',
-    subject: `Nuevo pedido — ${datos.nombre} — Talle ${datos.talle}`,
+    to: 'bymoonlightlr@gmail.com',
+    subject: `Nuevo pedido — ${datos.nombre}`,
     html: `
       <div style="background:#0a0a0a; color:#e0e0e0; font-family:Georgia,serif; padding:40px; max-width:480px; margin:0 auto;">
         <p style="font-size:11px; letter-spacing:0.3em; color:#555; margin-bottom:24px;">MOONLIGHT® — NUEVO PEDIDO</p>
-        <div style="border:0.5px solid #1e1e1e; padding:20px;">
+        <div style="border:0.5px solid #1e1e1e; padding:20px; margin-bottom:20px;">
+          <p style="font-size:10px; letter-spacing:0.2em; color:#555; margin-bottom:14px;">CLIENTE</p>
           <table style="width:100%; font-size:12px; color:#888; border-collapse:collapse;">
             <tr><td style="padding:6px 0; color:#555;">Nombre</td><td style="text-align:right;">${datos.nombre}</td></tr>
             <tr><td style="padding:6px 0; color:#555;">Email</td><td style="text-align:right;">${datos.email}</td></tr>
             <tr><td style="padding:6px 0; color:#555;">Teléfono</td><td style="text-align:right;">${datos.telefono}</td></tr>
             <tr><td style="padding:6px 0; color:#555;">Ciudad</td><td style="text-align:right;">${datos.ciudad}</td></tr>
             <tr><td style="padding:6px 0; color:#555;">CP</td><td style="text-align:right;">${datos.codigoPostal}</td></tr>
-            <tr><td style="padding:6px 0; color:#555;">Talle</td><td style="text-align:right;">${datos.talle}</td></tr>
-            <tr><td style="padding:6px 0; color:#555;">Pago</td><td style="text-align:right;">${datos.metodoPago}</td></tr>
-            <tr><td style="padding:6px 0; color:#555;">Retiro</td><td style="text-align:right;">${datos.retiroPersonal ? 'Sí' : 'No'}</td></tr>
+          </table>
+        </div>
+        <div style="border:0.5px solid #1e1e1e; padding:20px;">
+          <p style="font-size:10px; letter-spacing:0.2em; color:#555; margin-bottom:14px;">PEDIDO</p>
+          <table style="width:100%; font-size:12px; color:#888; border-collapse:collapse;">
+            ${datos.items.map(i => filaItem(i.talle, i.cantidad, datos.precioUnitario)).join('')}
             <tr style="border-top:0.5px solid #1e1e1e;">
-              <td style="padding:10px 0 6px; color:#e0e0e0;">Total</td>
+              <td style="padding:8px 0 4px; color:#555;">Envío</td>
+              <td></td>
+              <td style="text-align:right;">${datos.retiroPersonal ? 'Retiro' : datos.costoEnvio ? `$${datos.costoEnvio.toLocaleString()}` : '-'}</td>
+            </tr>
+            <tr><td style="padding:4px 0; color:#555;">Pago</td><td></td><td style="text-align:right;">${datos.metodoPago}</td></tr>
+            <tr style="border-top:0.5px solid #1e1e1e;">
+              <td style="padding:8px 0 6px; color:#e0e0e0;">Total</td>
+              <td></td>
               <td style="text-align:right; color:#e0e0e0;">$${datos.total.toLocaleString()}</td>
             </tr>
           </table>

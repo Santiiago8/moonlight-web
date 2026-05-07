@@ -12,21 +12,20 @@ export async function POST(req: NextRequest) {
       telefono,
       ciudad,
       codigoPostal,
-      talle,
-      precio,
+      items,
+      precioUnitario,
       costoEnvio,
+      total,
       metodoPago,
       retiroPersonal,
     } = body
 
-    if (!nombre || !email || !ciudad || !codigoPostal || !talle) {
+    if (!nombre || !email || !ciudad || !codigoPostal || !items || items.length === 0) {
       return NextResponse.json(
         { error: 'Faltan campos obligatorios.' },
         { status: 400 }
       )
     }
-
-    const total = precio + (retiroPersonal ? 0 : costoEnvio || 0)
 
     const datos = {
       nombre,
@@ -34,8 +33,8 @@ export async function POST(req: NextRequest) {
       telefono,
       ciudad,
       codigoPostal,
-      talle,
-      precio,
+      items,
+      precioUnitario,
       costoEnvio,
       total,
       metodoPago,
@@ -43,7 +42,13 @@ export async function POST(req: NextRequest) {
     }
 
     await agregarPedido(datos)
-    await descontarStock(talle)
+
+    for (const item of items) {
+      for (let i = 0; i < item.cantidad; i++) {
+        await descontarStock(item.talle)
+      }
+    }
+
     await enviarConfirmacionCliente(datos)
     await enviarNotificacionAdmin(datos)
 
