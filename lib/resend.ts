@@ -26,7 +26,7 @@ const filaItem = (talle: string, cantidad: number, precio: number) => `
 
 export async function enviarConfirmacionCliente(datos: DatosPedido) {
   await resend.emails.send({
-    from: 'MOONLIGHT® <onboarding@resend.dev>',
+    from: 'MOONLIGHT® <pedidos@bymoonlightlr.com.ar>',
     to: datos.email,
     subject: 'Tu pedido fue recibido — MOONLIGHT®',
     html: `
@@ -76,7 +76,7 @@ export async function enviarConfirmacionCliente(datos: DatosPedido) {
 
 export async function enviarNotificacionAdmin(datos: DatosPedido) {
   await resend.emails.send({
-    from: 'MOONLIGHT® <onboarding@resend.dev>',
+    from: 'MOONLIGHT® <pedidos@bymoonlightlr.com.ar>',
     to: 'bymoonlightlr@gmail.com',
     subject: `Nuevo pedido — ${datos.nombre}`,
     html: `
